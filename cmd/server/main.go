@@ -62,55 +62,63 @@ func updateMetrics(res http.ResponseWriter, req *http.Request) {
 	}
 
 	metricType := req.PathValue("metricType")
-	if metricType != gauge && metricType != counter {
-		res.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
 	metricName := req.PathValue("metricName")
 	if metricName == "" {
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
-
 	metricValue := req.PathValue("metricValue")
 
-	if metricType == gauge {
-		newValue, err := strconv.ParseFloat(metricValue, 64)
-		if err != nil {
+	// тут нужен вариант как в js 'gauge' | 'counter'
+	switch metricType {
+	case gauge:
+		if err := updateGauge(metricName, metricValue); err != nil {
 			res.WriteHeader(http.StatusBadRequest)
 			return
 		}
-
-		// имя метрики - значение
-		// замещение
-		storage.storage[metricName] = newValue
-
-		// TODO сохранение в стор
-	} else if metricValue == counter {
-		newValue, err := strconv.ParseInt(metricValue, 10, 64)
-		if err != nil {
+	case counter:
+		if err := updateCounter(metricName, metricValue); err != nil {
 			res.WriteHeader(http.StatusBadRequest)
 			return
 		}
-
-		// имя метрики - значение
-		// замещение
-		if value, exists := storage.storage[metricName]; exists {
-			switch value.(type) {
-			case int64:
-				intValue := value.(int64)
-				storage.storage[metricName] = newValue + intValue
-			case float64:
-				floatValue := value.(float64)
-				storage.storage[metricName] = newValue + int64(floatValue)
-			default:
-
-			}
-		} else {
-			storage.storage[metricName] = newValue
-		}
+	default:
+		res.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	res.WriteHeader(http.StatusOK)
+}
+
+func updateGauge(metricName string, metricValue string) error {
+	newValue, err := strconv.ParseFloat(metricValue, 64)
+	if err != nil {
+		return err
+	}
+
+	storage.storage[metricName] = newValue
+	return nil
+}
+
+func updateCounter(metricName string, metricValue string) error {
+	newValue, err := strconv.ParseInt(metricValue, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	if value, exists := storage.storage[metricName]; exists {
+		switch value.(type) {
+		case int64:
+			intValue := value.(int64)
+			storage.storage[metricName] = newValue + intValue
+		case float64:
+			floatValue := value.(float64)
+			storage.storage[metricName] = newValue + int64(floatValue)
+		default:
+
+		}
+	} else {
+		storage.storage[metricName] = newValue
+	}
+
+	return nil
 }
