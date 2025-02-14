@@ -6,16 +6,11 @@ import (
 )
 
 const (
-	gauge   = "gauge"
-	counter = "counter"
+	MetricTypeGauge   string = "gauge"
+	MetricTypeCounter string = "counter"
 )
 
-// новое значение замещает предыдущее
-//type gauge float64
-
-// новое значение добавляется к предыдущему, если какое-то значение уже было
-// известно серверу
-//type counter int64
+var storage = newMemStorage()
 
 type MemStorage struct {
 	storage map[string]any
@@ -27,14 +22,19 @@ func newMemStorage() *MemStorage {
 	}
 }
 
-// TODO посмотреть как правильно ее создавать
-//func newMemStorage() *MemStorage {
-//	return &MemStorage{}
-//}
+func (m *MemStorage) Save(key string, value any) {
+	m.storage[key] = value
+}
 
-// описать интерфейс для взаимодействия с хранилищем
+func (m *MemStorage) Get(key string) (any, bool) {
+	value, ok := m.storage[key]
+	return value, ok
+}
 
-var storage = newMemStorage()
+type Storage interface {
+	Save(key string, value any)
+	Get(key string) (any, bool)
+}
 
 func main() {
 	//storage := newMemStorage()
@@ -45,13 +45,6 @@ func main() {
 		panic(err)
 	}
 }
-
-// Реализуем для хранилища методы для работы с ним
-
-// много повторов
-// работа с хранилищем организована плохо, потому что нет отдельных методов
-
-// TODO переделать подключение хендлером, нужно прокинуть в хендлер хранилище
 
 // updateMetrics это контроллер, а нам нужно сделать более раскрытую архитектуру
 func updateMetrics(res http.ResponseWriter, req *http.Request) {
@@ -69,14 +62,13 @@ func updateMetrics(res http.ResponseWriter, req *http.Request) {
 	}
 	metricValue := req.PathValue("metricValue")
 
-	// тут нужен вариант как в js 'gauge' | 'counter'
 	switch metricType {
-	case gauge:
+	case MetricTypeGauge:
 		if err := updateGauge(metricName, metricValue); err != nil {
 			res.WriteHeader(http.StatusBadRequest)
 			return
 		}
-	case counter:
+	case MetricTypeCounter:
 		if err := updateCounter(metricName, metricValue); err != nil {
 			res.WriteHeader(http.StatusBadRequest)
 			return
@@ -95,7 +87,8 @@ func updateGauge(metricName string, metricValue string) error {
 		return err
 	}
 
-	storage.storage[metricName] = newValue
+	storage.Save(metricName, newValue)
+
 	return nil
 }
 
@@ -105,19 +98,19 @@ func updateCounter(metricName string, metricValue string) error {
 		return err
 	}
 
-	if value, exists := storage.storage[metricName]; exists {
+	if value, exists := storage.Get(metricName); exists {
 		switch value.(type) {
 		case int64:
 			intValue := value.(int64)
-			storage.storage[metricName] = newValue + intValue
+			storage.Save(metricName, newValue+intValue)
 		case float64:
 			floatValue := value.(float64)
-			storage.storage[metricName] = newValue + int64(floatValue)
+			storage.Save(metricName, newValue+int64(floatValue))
 		default:
 
 		}
 	} else {
-		storage.storage[metricName] = newValue
+		storage.Save(metricName, newValue)
 	}
 
 	return nil
