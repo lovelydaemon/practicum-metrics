@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"strconv"
 )
 
@@ -30,7 +31,7 @@ func (service *metricsService) UpdateMetrics(metricType, metricName, metricValue
 			return err
 		}
 	default:
-		return nil
+		return errors.New("unknown metric type")
 	}
 
 	return nil

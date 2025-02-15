@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	MetricTypeGauge   string = "gauge"
-	MetricTypeCounter string = "counter"
+	metricTypeGauge   string = "gauge"
+	metricTypeCounter string = "counter"
 )
 
 type metricsRoutes struct {
@@ -31,11 +31,17 @@ func (r *metricsRoutes) updateMetrics(res http.ResponseWriter, req *http.Request
 	}
 
 	metricType := req.PathValue("metricType")
+	if metricType != metricTypeGauge && metricType != metricTypeCounter {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	metricName := req.PathValue("metricName")
 	if metricName == "" {
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
+
 	metricValue := req.PathValue("metricValue")
 
 	err := r.service.UpdateMetrics(metricType, metricName, metricValue)
