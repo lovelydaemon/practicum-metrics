@@ -3,27 +3,23 @@ package main
 import (
 	"net/http"
 
-	//"github.com/lovelydaemon/practicum-metrics/internal/server/controller"
-	"github.com/lovelydaemon/practicum-metrics/internal/server/metrics"
+	v1 "github.com/lovelydaemon/practicum-metrics/internal/server/controller/http/v1"
+	"github.com/lovelydaemon/practicum-metrics/internal/server/repositories"
+	"github.com/lovelydaemon/practicum-metrics/internal/server/services"
 	"github.com/lovelydaemon/practicum-metrics/internal/server/storage"
 )
 
 func main() {
-	// общий стор
 	storage := storage.NewMemStorage()
 
-	// движок роутинга
 	mux := http.NewServeMux()
 
-	// сервис метрик
-	metricsService := metrics.NewMetricsService(storage)
-	// роутинг метрик
-	metrics.NewMetricsController(mux, metricsService)
+	metricsRepo := repositories.NewMetricsRepo(storage)
+	metricsService := services.NewMetricsService(metricsRepo)
 
-	//handler := controller.NewRouter(mux)
+	handler := v1.NewRouter(mux, metricsService)
 
-	// передали все роуты в сервер
-	if err := http.ListenAndServe(":8080", mux); err != nil {
+	if err := http.ListenAndServe(":8080", handler); err != nil {
 		panic(err)
 	}
 }
