@@ -6,11 +6,6 @@ import (
 	"github.com/lovelydaemon/practicum-metrics/internal/server/services"
 )
 
-const (
-	metricTypeGauge   string = "gauge"
-	metricTypeCounter string = "counter"
-)
-
 type metricsRoutes struct {
 	service services.Metrics
 }
@@ -31,11 +26,6 @@ func (r *metricsRoutes) updateMetrics(res http.ResponseWriter, req *http.Request
 	}
 
 	metricType := req.PathValue("metricType")
-	if metricType != metricTypeGauge && metricType != metricTypeCounter {
-		res.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
 	metricName := req.PathValue("metricName")
 	if metricName == "" {
 		res.WriteHeader(http.StatusNotFound)
