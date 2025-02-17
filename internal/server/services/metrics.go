@@ -3,12 +3,16 @@ package services
 import (
 	"errors"
 	"strconv"
+	"strings"
 )
 
 const (
-	metricTypeGauge   string = "gauge"
-	metricTypeCounter string = "counter"
+	typeGauge   string = "gauge"
+	typeCounter string = "counter"
 )
+
+var ErrMetricsUnknownType = errors.New("unknown metric type")
+var ErrMetricsEmptyName = errors.New("metric name is empty")
 
 type metricsService struct {
 	repo MetricsRepo
@@ -21,17 +25,22 @@ func NewMetricsService(repo MetricsRepo) *metricsService {
 }
 
 func (service *metricsService) UpdateMetrics(metricType, metricName, metricValue string) error {
+	name := strings.TrimSpace(metricName)
+	if name == "" {
+		return ErrMetricsEmptyName
+	}
+
 	switch metricType {
-	case metricTypeGauge:
-		if err := service.updateGauge(metricName, metricValue); err != nil {
+	case typeGauge:
+		if err := service.updateGauge(name, metricValue); err != nil {
 			return err
 		}
-	case metricTypeCounter:
-		if err := service.updateCounter(metricName, metricValue); err != nil {
+	case typeCounter:
+		if err := service.updateCounter(name, metricValue); err != nil {
 			return err
 		}
 	default:
-		return errors.New("unknown metric type")
+		return ErrMetricsUnknownType
 	}
 
 	return nil
