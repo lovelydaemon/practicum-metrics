@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/lovelydaemon/practicum-metrics/internal/server/services"
@@ -27,15 +28,15 @@ func (r *metricsRoutes) updateMetrics(res http.ResponseWriter, req *http.Request
 
 	metricType := req.PathValue("metricType")
 	metricName := req.PathValue("metricName")
-	if metricName == "" {
-		res.WriteHeader(http.StatusNotFound)
-		return
-	}
-
 	metricValue := req.PathValue("metricValue")
 
 	err := r.service.UpdateMetrics(metricType, metricName, metricValue)
 	if err != nil {
+		if errors.Is(err, services.ErrMetricsEmptyName) {
+			res.WriteHeader(http.StatusNotFound)
+			return
+		}
+
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
