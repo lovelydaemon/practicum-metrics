@@ -2,17 +2,19 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 )
 
 const (
-	typeGauge   string = "gauge"
-	typeCounter string = "counter"
+	metricTypeGauge   string = "gauge"
+	metricTypeCounter string = "counter"
 )
 
 var ErrMetricsUnknownType = errors.New("unknown metric type")
 var ErrMetricsEmptyName = errors.New("metric name is empty")
+var ErrMetricsNotFound = errors.New("metric not found")
 
 type metricsService struct {
 	repo MetricsRepo
@@ -24,6 +26,24 @@ func NewMetricsService(repo MetricsRepo) *metricsService {
 	}
 }
 
+func (service *metricsService) GetAll() map[string]any {
+	metrics := service.repo.GetAll()
+	return metrics
+}
+
+func (service *metricsService) GetMetricValue(metricType, metricName string) (string, error) {
+	switch metricType {
+	case metricTypeGauge:
+		value, err := service.repo.GetGauge(metricName)
+		return fmt.Sprintf("%.3f", value), err
+	case metricTypeCounter:
+		value, err := service.repo.GetCounter(metricName)
+		return fmt.Sprintf("%d", value), err
+	default:
+		return "", ErrMetricsUnknownType
+	}
+}
+
 func (service *metricsService) UpdateMetrics(metricType, metricName, metricValue string) error {
 	name := strings.TrimSpace(metricName)
 	if name == "" {
@@ -31,11 +51,11 @@ func (service *metricsService) UpdateMetrics(metricType, metricName, metricValue
 	}
 
 	switch metricType {
-	case typeGauge:
+	case metricTypeGauge:
 		if err := service.updateGauge(name, metricValue); err != nil {
 			return err
 		}
-	case typeCounter:
+	case metricTypeCounter:
 		if err := service.updateCounter(name, metricValue); err != nil {
 			return err
 		}

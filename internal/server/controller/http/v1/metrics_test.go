@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +20,75 @@ type MockService struct {
 func (m *MockService) UpdateMetrics(metricType, metricName, metricValue string) error {
 	args := m.Called(metricType, metricName, metricValue)
 	return args.Error(0)
+}
+
+func (m *MockService) GetMetricValue(metricType, metricName string) (string, error) {
+	args := m.Called(metricType, metricName)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockService) GetAll() map[string]any {
+	args := m.Called()
+	return args.Get(0).(map[string]any)
+}
+
+func TestMetrics_getMetricValue_found(t *testing.T) {
+	successResponse := "123"
+	successContentType := "text/plain"
+
+	handler := http.NewServeMux()
+
+	mockService := new(MockService)
+
+	mockService.On("GetMetricValue", mock.Anything, mock.Anything).Return(successResponse, nil)
+
+	newMetricsRoutes(handler, mockService)
+
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	client := srv.Client()
+
+	t.Run("return metric value", func(t *testing.T) {
+		res, err := client.Get(srv.URL + "/value/abcd/abcd")
+		require.NoError(t, err)
+
+		resBody, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+		assert.Equal(t, successContentType, res.Header.Get("content-type"))
+		assert.Equal(t, []byte(successResponse), resBody)
+	})
+}
+
+func TestMetrics_getMetricValue_not_found(t *testing.T) {
+	handler := http.NewServeMux()
+
+	mockService := new(MockService)
+
+	mockService.On("GetMetricValue", mock.Anything, mock.Anything).Return("", errors.New("Metric not found"))
+
+	newMetricsRoutes(handler, mockService)
+
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
+
+	client := srv.Client()
+
+	t.Run("metric not found", func(t *testing.T) {
+		res, err := client.Get(srv.URL + "/value/abcd/abcd")
+		require.NoError(t, err)
+
+		_, err = io.Copy(io.Discard, res.Body)
+		require.NoError(t, err)
+
+		defer res.Body.Close()
+
+		assert.Equal(t, http.StatusNotFound, res.StatusCode)
+	})
 }
 
 func TestMetrics_updateMetrics(t *testing.T) {
@@ -101,7 +171,7 @@ func TestMetrics_updateMetrics(t *testing.T) {
 			res, err := client.Do(req)
 			require.NoError(t, err)
 
-			_, err = io.ReadAll(res.Body)
+			_, err = io.Copy(io.Discard, res.Body)
 			require.NoError(t, err)
 
 			defer res.Body.Close()
@@ -134,7 +204,7 @@ func TestMetrics_updateMetrics_notFound(t *testing.T) {
 		res, err := client.Do(req)
 		require.NoError(t, err)
 
-		_, err = io.ReadAll(res.Body)
+		_, err = io.Copy(io.Discard, res.Body)
 		require.NoError(t, err)
 
 		defer res.Body.Close()
@@ -166,7 +236,7 @@ func TestMetrics_updateMetrics_badRequest(t *testing.T) {
 		res, err := client.Do(req)
 		require.NoError(t, err)
 
-		_, err = io.ReadAll(res.Body)
+		_, err = io.Copy(io.Discard, res.Body)
 		require.NoError(t, err)
 
 		defer res.Body.Close()
