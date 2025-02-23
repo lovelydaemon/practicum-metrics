@@ -69,6 +69,8 @@ func (r *metricsRoutes) updateMetrics(res http.ResponseWriter, req *http.Request
 	metricValue := req.PathValue("metricValue")
 
 	err := r.service.Save(metricType, metricName, metricValue)
+
+	fmt.Println("ERORRRRRRRR", err)
 	if err != nil {
 		if errors.Is(err, services.ErrMetricsEmptyName) {
 			res.WriteHeader(http.StatusNotFound)
