@@ -8,35 +8,35 @@ import (
 )
 
 const (
-	metricTypeGauge   string = "gauge"
-	metricTypeCounter string = "counter"
+	MetricTypeGauge   string = "gauge"
+	MetricTypeCounter string = "counter"
 )
 
 var ErrMetricsUnknownType = errors.New("unknown metric type")
 var ErrMetricsEmptyName = errors.New("metric name is empty")
 var ErrMetricsNotFound = errors.New("metric not found")
 
-type metricsService struct {
+type MetricsService struct {
 	repo MetricsRepo
 }
 
-func NewMetricsService(repo MetricsRepo) *metricsService {
-	return &metricsService{
+func NewMetricsService(repo MetricsRepo) *MetricsService {
+	return &MetricsService{
 		repo: repo,
 	}
 }
 
-func (service *metricsService) GetAll() map[string]any {
+func (service *MetricsService) GetAll() map[string]any {
 	metrics := service.repo.GetAll()
 	return metrics
 }
 
-func (service *metricsService) GetMetricValue(metricType, metricName string) (string, error) {
+func (service *MetricsService) GetMetricValue(metricType, metricName string) (string, error) {
 	switch metricType {
-	case metricTypeGauge:
+	case MetricTypeGauge:
 		value, err := service.repo.GetGauge(metricName)
 		return fmt.Sprintf("%.3f", value), err
-	case metricTypeCounter:
+	case MetricTypeCounter:
 		value, err := service.repo.GetCounter(metricName)
 		return fmt.Sprintf("%d", value), err
 	default:
@@ -44,19 +44,19 @@ func (service *metricsService) GetMetricValue(metricType, metricName string) (st
 	}
 }
 
-func (service *metricsService) UpdateMetrics(metricType, metricName, metricValue string) error {
+func (service *MetricsService) Save(metricType, metricName, metricValue string) error {
 	name := strings.TrimSpace(metricName)
 	if name == "" {
 		return ErrMetricsEmptyName
 	}
 
 	switch metricType {
-	case metricTypeGauge:
-		if err := service.updateGauge(name, metricValue); err != nil {
+	case MetricTypeGauge:
+		if err := service.saveGauge(name, metricValue); err != nil {
 			return err
 		}
-	case metricTypeCounter:
-		if err := service.updateCounter(name, metricValue); err != nil {
+	case MetricTypeCounter:
+		if err := service.saveCounter(name, metricValue); err != nil {
 			return err
 		}
 	default:
@@ -66,24 +66,24 @@ func (service *metricsService) UpdateMetrics(metricType, metricName, metricValue
 	return nil
 }
 
-func (service *metricsService) updateGauge(metricName, metricValue string) error {
+func (service *MetricsService) saveGauge(metricName, metricValue string) error {
 	parsedValue, err := strconv.ParseFloat(metricValue, 64)
 	if err != nil {
 		return err
 	}
 
-	service.repo.UpdateGauge(metricName, parsedValue)
+	service.repo.SaveGauge(metricName, parsedValue)
 
 	return nil
 }
 
-func (service *metricsService) updateCounter(metricName, metricValue string) error {
+func (service *MetricsService) saveCounter(metricName, metricValue string) error {
 	parsedValue, err := strconv.ParseInt(metricValue, 10, 64)
 	if err != nil {
 		return err
 	}
 
-	service.repo.UpdateCounter(metricName, parsedValue)
+	service.repo.SaveCounter(metricName, parsedValue)
 
 	return nil
 }

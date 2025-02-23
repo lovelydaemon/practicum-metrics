@@ -18,7 +18,7 @@ func newMetricsRoutes(mux *http.ServeMux, service services.Metrics) {
 		service: service,
 	}
 
-	mux.HandleFunc("GET /", r.getMetricsHTML)
+	mux.HandleFunc("GET /{$}", r.getMetricsHTML)
 	mux.HandleFunc("GET /value/{metricType}/{metricName}", r.getMetricValue)
 	mux.HandleFunc("POST /update/{metricType}/{metricName}/{metricValue}", r.updateMetrics)
 }
@@ -67,7 +67,7 @@ func (r *metricsRoutes) updateMetrics(res http.ResponseWriter, req *http.Request
 	metricName := req.PathValue("metricName")
 	metricValue := req.PathValue("metricValue")
 
-	err := r.service.UpdateMetrics(metricType, metricName, metricValue)
+	err := r.service.Save(metricType, metricName, metricValue)
 	if err != nil {
 		if errors.Is(err, services.ErrMetricsEmptyName) {
 			res.WriteHeader(http.StatusNotFound)

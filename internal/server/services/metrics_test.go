@@ -1,215 +1,99 @@
-package services
+package services_test
 
 import (
-	"reflect"
-	"strconv"
 	"testing"
 
 	"github.com/lovelydaemon/practicum-metrics/internal/server/repositories"
+	"github.com/lovelydaemon/practicum-metrics/internal/server/services"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	"go.uber.org/mock/gomock"
 )
 
-type MockRepo struct {
-	mock.Mock
+func metrics(t *testing.T) (*services.MetricsService, *MockMetricsRepo) {
+	t.Helper()
+
+	ctrl := gomock.NewController(t)
+	repo := NewMockMetricsRepo(ctrl)
+	metrics := services.NewMetricsService(repo)
+
+	return metrics, repo
 }
 
-func (m *MockRepo) GetGauge(metricName string) (float64, error) {
-	args := m.Called(metricName)
-	return float64(args.Get(0).(float64)), args.Error(1)
+func TestGetMetricValue(t *testing.T) {
+	metrics, repo := metrics(t)
+
+	t.Run("should return gauge value", func(t *testing.T) {
+		repo.EXPECT().GetGauge("testGauge").Return(1.111, nil)
+		value, _ := metrics.GetMetricValue(services.MetricTypeGauge, "testGauge")
+		assert.Equal(t, "1.111", value)
+	})
+
+	t.Run("should return counter value", func(t *testing.T) {
+		repo.EXPECT().GetCounter("testCounter").Return(int64(10), nil)
+		value, _ := metrics.GetMetricValue(services.MetricTypeCounter, "testCounter")
+		assert.Equal(t, "10", value)
+	})
+
+	t.Run("should return error on unknown metric type", func(t *testing.T) {
+		_, err := metrics.GetMetricValue("unknown", "testName")
+		assert.ErrorIs(t, err, services.ErrMetricsUnknownType)
+	})
+
+	t.Run("should return error 'not found' from repo", func(t *testing.T) {
+		repo.EXPECT().GetGauge("testName").Return(0.0, repositories.ErrRepoNotFound)
+		_, err := metrics.GetMetricValue(services.MetricTypeGauge, "testName")
+		assert.ErrorIs(t, err, repositories.ErrRepoNotFound)
+	})
 }
 
-func (m *MockRepo) GetCounter(metricName string) (int64, error) {
-	args := m.Called(metricName)
-	return int64(args.Int(0)), args.Error(1)
-}
+func TestSave(t *testing.T) {
+	metrics, repo := metrics(t)
 
-func (m *MockRepo) UpdateGauge(metricName string, metricValue float64) {
-	return
-}
+	t.Run("should return error on empty metric name", func(t *testing.T) {
+		err := metrics.Save(services.MetricTypeGauge, "", "1.111")
+		assert.ErrorIs(t, err, services.ErrMetricsEmptyName)
+	})
 
-func (m *MockRepo) UpdateCounter(metricName string, metricValue int64) {
-	return
-}
+	t.Run("should return error on unknown metric type", func(t *testing.T) {
+		err := metrics.Save("unknown", "testName", "1.111")
+		assert.ErrorIs(t, err, services.ErrMetricsUnknownType)
+	})
 
-func (m *MockRepo) GetAll() map[string]any {
-	args := m.Called()
-	return args.Get(0).(map[string]any)
-}
+	t.Run("should return error when trying to parse gauge value in float64 type", func(t *testing.T) {
+		err := metrics.Save(services.MetricTypeGauge, "testGauge", "text")
+		assert.Error(t, err)
+	})
 
-func TestGetMetricValue_GetValueSuccess(t *testing.T) {
-	mockRepo := new(MockRepo)
-	service := NewMetricsService(mockRepo)
+	t.Run("should return error when trying to parse counter value in int64 type", func(t *testing.T) {
+		err := metrics.Save(services.MetricTypeCounter, "testCounter", "text")
+		assert.Error(t, err)
+	})
 
-	mockRepo.On("GetGauge", "test").Return(1.123, nil)
-	mockRepo.On("GetCounter", "test").Return(123, nil)
+	t.Run("should successfully save gauge value", func(t *testing.T) {
+		repo.EXPECT().SaveGauge(gomock.Any(), gomock.Any())
+		err := metrics.Save(services.MetricTypeGauge, "testGauge", "1.111")
+		assert.NoError(t, err)
+	})
 
-	tests := []struct {
-		name       string
-		metricType string
-		want       string
-	}{
-		{
-			name:       "return gauge value",
-			metricType: metricTypeGauge,
-			want:       "1.123",
-		},
-		{
-			name:       "return counter value",
-			metricType: metricTypeCounter,
-			want:       "123",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			value, _ := service.GetMetricValue(tt.metricType, "test")
-			assert.Equal(t, tt.want, value)
-		})
-	}
-}
-
-func TestGetMetricValue_GetValueFailed(t *testing.T) {
-	mockRepo := new(MockRepo)
-	service := NewMetricsService(mockRepo)
-
-	mockRepo.On("GetGauge", "test").Return(0.0, repositories.ErrRepoNotFound)
-	mockRepo.On("GetCounter", "test").Return(0, repositories.ErrRepoNotFound)
-
-	tests := []struct {
-		name       string
-		metricType string
-		error      error
-	}{
-		{
-			name:       "unknown metric type",
-			metricType: "test",
-			error:      ErrMetricsUnknownType,
-		},
-		{
-			name:       "gauge metric not found",
-			metricType: metricTypeGauge,
-			error:      repositories.ErrRepoNotFound,
-		},
-		{
-			name:       "counter metric not found",
-			metricType: metricTypeCounter,
-			error:      repositories.ErrRepoNotFound,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := service.GetMetricValue(tt.metricType, "test")
-			assert.ErrorIs(t, err, tt.error)
-		})
-	}
-}
-
-func TestUpdateMetrics(t *testing.T) {
-	mockRepo := new(MockRepo)
-	service := NewMetricsService(mockRepo)
-
-	type args struct {
-		metricType  string
-		metricName  string
-		metricValue string
-	}
-
-	tests := []struct {
-		name      string
-		args      args
-		wantError bool
-		error     error
-	}{
-		{
-			name: "empty name",
-			args: args{
-				metricType:  "",
-				metricName:  "",
-				metricValue: "",
-			},
-			wantError: true,
-			error:     ErrMetricsEmptyName,
-		},
-		{
-			name: "unknown type",
-			args: args{
-				metricType:  "type",
-				metricName:  "name",
-				metricValue: "123",
-			},
-			wantError: true,
-			error:     ErrMetricsUnknownType,
-		},
-		{
-			name: "parse to float64 error",
-			args: args{
-				metricType:  "gauge",
-				metricName:  "name",
-				metricValue: "test",
-			},
-			wantError: true,
-			error:     strconv.ErrSyntax,
-		},
-		{
-			name: "parse to int64 error",
-			args: args{
-				metricType:  "counter",
-				metricName:  "name",
-				metricValue: "test",
-			},
-			wantError: true,
-			error:     strconv.ErrSyntax,
-		},
-		{
-			name: "successful case for gauge type",
-			args: args{
-				metricType:  "gauge",
-				metricName:  "name",
-				metricValue: "1.1",
-			},
-			wantError: false,
-		},
-		{
-			name: "successful case for counter type",
-			args: args{
-				metricType:  "counter",
-				metricName:  "name",
-				metricValue: "1",
-			},
-			wantError: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := service.UpdateMetrics(tt.args.metricType, tt.args.metricName, tt.args.metricValue)
-
-			if tt.wantError {
-				assert.ErrorIs(t, err, tt.error)
-				return
-			}
-
-			assert.NoError(t, err)
-		})
-	}
+	t.Run("should successfully save counter value", func(t *testing.T) {
+		repo.EXPECT().SaveCounter(gomock.Any(), gomock.Any())
+		err := metrics.Save(services.MetricTypeCounter, "testCounter", "10")
+		assert.NoError(t, err)
+	})
 }
 
 func TestGetAll(t *testing.T) {
-	mockRepo := new(MockRepo)
-	service := NewMetricsService(mockRepo)
+	metrics, repo := metrics(t)
 
 	want := map[string]any{
 		"testCounter": int64(1),
-		"testGauge":   float64(1.1),
+		"testGauge":   float64(1.111),
 	}
 
-	mockRepo.On("GetAll").Return(want)
-
 	t.Run("should return all data from storage", func(t *testing.T) {
-		result := service.GetAll()
-		if !reflect.DeepEqual(result, want) {
+		repo.EXPECT().GetAll().Return(want)
+		result := metrics.GetAll()
+		if !assert.ObjectsAreEqual(want, result) {
 			t.Error("Maps are not equal")
 		}
 	})

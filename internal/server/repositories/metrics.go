@@ -41,11 +41,11 @@ func (repo *metricsRepo) GetCounter(metricName string) (int64, error) {
 	return value, nil
 }
 
-func (repo *metricsRepo) UpdateGauge(metricName string, metricValue float64) {
+func (repo *metricsRepo) SaveGauge(metricName string, metricValue float64) {
 	repo.storage.SaveGauge(metricName, metricValue)
 }
 
-func (repo *metricsRepo) UpdateCounter(metricName string, metricValue int64) {
+func (repo *metricsRepo) SaveCounter(metricName string, metricValue int64) {
 	value, ok := repo.storage.GetCounter(metricName)
 	if !ok {
 		repo.storage.SaveCounter(metricName, metricValue)
