@@ -60,7 +60,7 @@ func (r *metricsRoutes) getMetricValue(res http.ResponseWriter, req *http.Reques
 func (r *metricsRoutes) updateMetrics(res http.ResponseWriter, req *http.Request) {
 	contentType := req.Header.Get("content-type")
 	if contentType != "text/plain" {
-		res.WriteHeader(http.StatusBadRequest)
+		res.WriteHeader(http.StatusConflict)
 		return
 	}
 
@@ -69,8 +69,6 @@ func (r *metricsRoutes) updateMetrics(res http.ResponseWriter, req *http.Request
 	metricValue := req.PathValue("metricValue")
 
 	err := r.service.Save(metricType, metricName, metricValue)
-
-	fmt.Println("ERORRRRRRRR", err)
 	if err != nil {
 		if errors.Is(err, services.ErrMetricsEmptyName) {
 			res.WriteHeader(http.StatusNotFound)
