@@ -2,11 +2,11 @@ package app
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/go-chi/chi/v5"
 	v1 "github.com/lovelydaemon/practicum-metrics/internal/server/controller/http/v1"
 	"github.com/lovelydaemon/practicum-metrics/internal/server/repositories"
 	"github.com/lovelydaemon/practicum-metrics/internal/server/services"
@@ -17,7 +17,7 @@ import (
 func Run() {
 	storage := storage.NewMemStorage()
 
-	mux := http.NewServeMux()
+	mux := chi.NewRouter()
 
 	metricsRepo := repositories.NewMetricsRepo(storage)
 	metricsService := services.NewMetricsService(metricsRepo)

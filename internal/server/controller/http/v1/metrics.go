@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/lovelydaemon/practicum-metrics/internal/server/services"
 )
 
@@ -13,7 +14,7 @@ type metricsRoutes struct {
 	service services.Metrics
 }
 
-func newMetricsRoutes(mux *http.ServeMux, service services.Metrics) {
+func newMetricsRoutes(mux *chi.Mux, service services.Metrics) {
 	r := &metricsRoutes{
 		service: service,
 	}
