@@ -59,7 +59,7 @@ func (r *metricsRoutes) getMetricValue(res http.ResponseWriter, req *http.Reques
 
 func (r *metricsRoutes) updateMetrics(res http.ResponseWriter, req *http.Request) {
 	contentType := req.Header.Get("content-type")
-	if contentType != "text/plain; charset=UTF-8" {
+	if contentType != "text/plain" {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
