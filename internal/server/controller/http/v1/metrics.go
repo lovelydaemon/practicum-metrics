@@ -19,9 +19,9 @@ func newMetricsRoutes(mux *chi.Mux, service services.Metrics) {
 		service: service,
 	}
 
-	mux.HandleFunc("GET /{$}", r.getMetricsHTML)
-	mux.HandleFunc("GET /value/{metricType}/{metricName}", r.getMetricValue)
-	mux.HandleFunc("POST /update/{metricType}/{metricName}/{metricValue}", r.updateMetrics)
+	mux.Get("/", r.getMetricsHTML)
+	mux.Get("/value/{metricType}/{metricName}", r.getMetricValue)
+	mux.Post("/update/{metricType}/{metricName}/{metricValue}", r.updateMetrics)
 }
 
 func (r *metricsRoutes) getMetricsHTML(res http.ResponseWriter, req *http.Request) {
@@ -40,8 +40,8 @@ func (r *metricsRoutes) getMetricsHTML(res http.ResponseWriter, req *http.Reques
 }
 
 func (r *metricsRoutes) getMetricValue(res http.ResponseWriter, req *http.Request) {
-	metricType := req.PathValue("metricType")
-	metricName := req.PathValue("metricName")
+	metricType := chi.URLParam(req, "metricType")
+	metricName := chi.URLParam(req, "metricName")
 
 	metricValue, err := r.service.GetMetricValue(metricType, metricName)
 	if err != nil {
@@ -65,9 +65,9 @@ func (r *metricsRoutes) updateMetrics(res http.ResponseWriter, req *http.Request
 	//		return
 	//	}
 
-	metricType := req.PathValue("metricType")
-	metricName := req.PathValue("metricName")
-	metricValue := req.PathValue("metricValue")
+	metricType := chi.URLParam(req, "metricType")
+	metricName := chi.URLParam(req, "metricName")
+	metricValue := chi.URLParam(req, "metricValue")
 
 	err := r.service.Save(metricType, metricName, metricValue)
 	if err != nil {

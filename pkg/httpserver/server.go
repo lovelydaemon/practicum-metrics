@@ -22,7 +22,7 @@ type Server struct {
 	shutdownTimeout time.Duration
 }
 
-func New(handler http.Handler) *Server {
+func New(handler http.Handler, opts ...Option) *Server {
 	httpServer := &http.Server{
 		Addr:              _defaultAddr,
 		Handler:           handler,
@@ -37,6 +37,10 @@ func New(handler http.Handler) *Server {
 		server:          httpServer,
 		notify:          make(chan error, 1),
 		shutdownTimeout: _defaultShutdownTimeout,
+	}
+
+	for _, opt := range opts {
+		opt(s)
 	}
 
 	s.start()
