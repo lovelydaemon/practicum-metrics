@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+      <meta charset="UTF-8">
+      <title>Metrics</title>
+  </head>
+  <body>
+    {{if eq (len .) 0}}
+      Nothing to see here
+    {{end}}
+
+    {{range $key, $value := .}}
+      <p>{{$key}}:{{$value}}</p>
+    {{end}}
+  </body>
+</html>
